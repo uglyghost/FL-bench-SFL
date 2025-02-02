@@ -49,6 +49,8 @@ def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
     gpu_memory = []
     if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
         gpu_ids = [int(i) for i in os.environ["CUDA_VISIBLE_DEVICES"].split(",")]
+        gpu_ids = [0]
+        print(gpu_ids)
         assert max(gpu_ids) < torch.cuda.device_count()
     else:
         gpu_ids = range(torch.cuda.device_count())
@@ -169,6 +171,7 @@ def parse_args(
     assert final_args.mode in [
         "serial",
         "parallel",
+        "sequential",
     ], f"Unrecongnized mode: {final_args.mode}"
     if final_args.mode == "parallel":
         import ray

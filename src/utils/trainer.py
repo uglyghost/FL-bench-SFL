@@ -9,13 +9,13 @@ from src.utils.constants import MODE
 
 class FLbenchTrainer:
     def __init__(
-        self, server, client_cls, mode: str, num_workers: int, init_args: dict
+        self, server, client_cls, mode: str, num_workers: int, init_args: dict,
     ):
         self.server = server
         self.client_cls = client_cls
         self.mode = mode
         self.num_workers = num_workers
-        if self.mode == MODE.SERIAL:
+        if self.mode == MODE.SERIAL or self.mode == MODE.SEQUENTIAL:
             self.worker = client_cls(**init_args)
         elif self.mode == MODE.PARALLEL:
             ray_client = ray.remote(client_cls).options(
@@ -32,15 +32,55 @@ class FLbenchTrainer:
             self.train = self._serial_train
             self.test = self._serial_test
             self.exec = self._serial_exec
-        else:
+        elif self.mode == MODE.PARALLEL:
             self.train = self._parallel_train
             self.test = self._parallel_test
             self.exec = self._parallel_exec
+        else:
+            self.train = self._sequential_serial_train
+            self.test = self._serial_test
+            self.exec = self._serial_exec
+
+    def _sequential_serial_train(self):
+        client_packages = OrderedDict()
+        client_package = OrderedDict()
+        for client_id in self.server.selected_clients:
+            if client_id != self.server.selected_clients[0]:
+                server_package = self.server.package(client_id)
+                # Convert client_package to OrderedDict
+                client_package = OrderedDict(client_package)
+                server_package['regular_model_params'] = client_package['regular_model_params']
+            else:
+                server_package = self.server.package(client_id)
+
+            client_package = self.worker.train(server_package)
+            client_packages[client_id] = client_package
+
+            if self.server.verbose:
+                self.server.logger.log(
+                    *client_package["eval_results"]["message"], sep="\n"
+                )
+            self.server.client_metrics[client_id][self.server.current_epoch] = (
+                client_package["eval_results"]
+            )
+            self.server.clients_personal_model_params[client_id].update(
+                client_package["personal_model_params"]
+            )
+            self.server.client_optimizer_states[client_id].update(
+                client_package["optimizer_state"]
+            )
+            self.server.client_lr_scheduler_states[client_id].update(
+                client_package["lr_scheduler_state"]
+            )
+
+        return client_packages
 
     def _serial_train(self):
         client_packages = OrderedDict()
+        client_package = OrderedDict()
         for client_id in self.server.selected_clients:
             server_package = self.server.package(client_id)
+
             client_package = self.worker.train(server_package)
             client_packages[client_id] = client_package
 

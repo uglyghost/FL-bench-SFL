@@ -265,6 +265,24 @@ class FedAvgServer:
                     **extras,
                 ),
             )
+        elif self.args.mode == "sequential":
+            self.trainer = FLbenchTrainer(
+                server=self,
+                client_cls=fl_client_cls,
+                mode=MODE.SEQUENTIAL,
+                num_workers=0,
+                init_args=dict(
+                    model=deepcopy(self.model),
+                    optimizer_cls=self.get_client_optimizer_cls(),
+                    lr_scheduler_cls=self.get_client_lr_scheduler_cls(),
+                    args=self.args,
+                    dataset=self.dataset,
+                    data_indices=self.client_data_indices,
+                    device=self.device,
+                    return_diff=self.return_diff,
+                    **extras,
+                ),
+            )
         else:
             model_ref = ray.put(self.model.cpu())
             optimzier_cls_ref = ray.put(self.get_client_optimizer_cls())

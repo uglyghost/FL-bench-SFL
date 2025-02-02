@@ -9,7 +9,7 @@ dataset:
   # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist,
   # medmnistA, medmnistC, covid19, celeba, synthetic, svhn,
   # tiny_imagenet, cinic10, domain]
-  name: mnist
+  name: cifar100
 
 model:
   name: lenet5
@@ -54,7 +54,7 @@ optimizer:
   betas: [0.9, 0.999] # for [Adam, AdamW]
   amsgrad: false # for [Adam, AdamW]
 
-mode: serial # [serial, parallel]
+mode: sequential # [serial, parallel, sequential]
 # It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
 parallel:
   # The IP address of the selected ray cluster.
@@ -77,10 +77,11 @@ parallel:
 common:
   seed: 42 # Random seed of the run.
   join_ratio: 0.1 # Ratio for (client each round) / (client num in total).
-  global_epoch: 100 # Number of global epochs, also called communication round.
+  global_epoch: 200 # Number of global epochs, also called communication round.
   local_epoch: 5 # Number if epochs of client local training.
   batch_size: 32 # Data batch size for client local training.
   reset_optimizer_on_global_epoch: true # Whether to reset optimizer on each global epoch.
+  sfl: true
 
   # The ratio of stragglers (set in [0, 1]).
   # Stragglers would not perform full-epoch local training as normal clients.
@@ -139,7 +140,18 @@ common:
 # You need to follow the key set in `get_hyperparams()` in class <method>Server, src/server/<method>.py
 # FL-bench will ignore these arguments if they are not supported by the selected method,
 # e.g., if you are running FedProx, then pfedsim arguments will be ignored.
+
 fedprox:
   mu: 0.01
+
 pfedsim:
   warmup_round: 0.5
+
+fedobp:
+  ig_ratio: 0.1
+  alpha: 0.5
+  norm: global         # global, layer, other
+  EMA: false           # true false
+  CLS: true            # true false
+  track: false         # true false
+  type: Main           # Main, Ablation
